@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Тестовое задание</title>
+</head>
+<body class="container">
+    {% csrf_token %}
+    <style>
+        input.phone, input.u_name {
+            font-size: 16px;
+            font-family: Times New Roman;
+        }
+        input.notActive{
+            border: none;
+            pointer-events: none;
+        }
+        input.edit {
+            border: none;
+            box-shadow: none;
+            font-size: 16px;
+            font-family: Times New Roman;
+            text-decoration: underline;
+            color: blue;
+            background: inherit;
+            cursor: pointer;
+        }
+        table {
+          border-collapse: collapse;
+        }
+        th {
+          border-bottom: solid 1px grey;
+        }
+        td {
+          border-bottom: solid 1px grey;
+        }
+        tr {
+          text-align: left;
+          padding-left: 8px;
+        }
+        .hide {
+          display: none;
+        }
+        .create-form {
+          height: 224px;
+          width: 300px;
+          z-index: 9999;
+          position: fixed;
+          top: calc(100%/2 - 112px);
+          left: calc(100%/2 - 150px);
+          background-color: white;
+          text-align: center;
+        }
+        .backdrop {
+          opacity: 0.8;
+          z-index: 9998;
+          height: 100%;
+          width: 100%;
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          left: 0;
+          background-color: grey;
+        }
+        .modal {
+          height: 100%;
+          width: 100%;
+        }
+        .modal-header {
+          height: 34px;
+          border-bottom: solid 1px grey;
+        }
+        .modal-footer {
+          height: 18px;
+          border-top: solid 1px grey;
+          padding-top: 16px;
+          padding-bottom: 16px;
+        }
+        .user-list {
+          text-align: -webkit-center;
+        }
+        .table-footer {
+          padding-top: 8px;
+        }
+        .button {
+          font-size: 16px;
+        }
+    </style>
+    <div id="modal-window" class="hide modal">
+      <div class="backdrop"></div>
+      <form method="POST" class="create-form" action="create/">
+          {% csrf_token %}
+          <div class="modal-header">
+            <p>Новый пользователь</p>
+          </div>
+          <p>
+              <label>Введите имя</label><br>
+              <input type="text" name="name" />
+          </p>
+          <p>
+             <label>Введите номер телефона</label><br>
+             <input type="text" name="phone" />
+          </p>
+          <div class="modal-footer">
+            <input type="button" class="button" value="Отмена" onclick="hideModal()">
+            <input type="submit" class="button" value="Сохранить" >
+          </div>
+      </form>
+    </div>
+    <div class="user-list">
+      {% if people %}
+      <h2>Список пользователей</h2>
+      <table id="UserList">
+          <thead><th>Имя</th><th>Номер телефона</th><th></th></thead>
+          {% for person in people %}
+          <tr data-el="{{person.id}}">
+              <td>
+                  <input id="name{{person.id}}" type="text" class="u_name notActive" value="{{ person.name }}"/>
+              </td>
+              <td>
+                  <input id="phone{{person.id}}" type="text" class="phone notActive" value="{{ person.phone }}"/>
+             </td>
+              <td>
+                  <input type="submit" data-id="{{person.id}}" value="Изменить" class="edit"> | <a data-id="{{person.id}}" href="delete/{{person.id}}" class="elDelete">Удалить</a>
+              </td>
+          </tr>
+          {% endfor %}
+      </table>
+      <div class="table-footer">
+        <input type="button" class="button" value="Добавить еще" id="addMore" onclick="openModal()">
+        <input type="submit" class="button" value="Показать еще" id="showMore">
+      </div>
+      {% endif %}
+    </div>
+
+<!--Скрипт по AJAX зарузке-->
+<!--Подключим JQuery-->
+<script
+  src="https://code.jquery.com/jquery-3.4.1.min.js"
+  integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
+  crossorigin="anonymous"></script>
+<script>
+  function openModal() {
+    document.getElementById('modal-window').classList.remove('hide');
+  }
+  function hideModal() {
+    document.getElementById('modal-window').classList.add('hide');
+  }
+  $(document).ready(function(){
+    $(document).on('click', '.elDelete', function(e){
+      e.preventDefault();
+      $this = $(this);
+      $.ajax({
+        url: $this.attr('href'),
+        type: 'GET',
+        success: function(data) {
+          $(document).find('[data-el="'+$this.attr('data-id')+'"]').remove();
+        }
+      });
+      return false;
+    })
+    $(document).on('click', '#showMore',function(){
+      ul_block = $(document).find('#UserList')
+      if (!ul_block.attr('data-page')){
+        ul_block.attr('data-page', 1)
+      }
+      var page = parseInt(ul_block.attr('data-page'))+1;
+      $.ajax({
+        url: '/',
+        type: 'GET',
+        data: {page:page, is_ajax: 'Y'},
+        success: function(data) {
+          normalData = JSON.parse(htmlSpecialChar_decode(data));
+          ul_block.attr('data-page', page);
+          if (normalData.list.length > 0) {
+            for(ind in normalData.list){
+              el = normalData.list[ind];
+              newString = $('<tr data-el="'+el.id+'">');
+              newString.append('<td><input id="name'+el.id+'" type="text" class="u_name notActive" value="'+el.name+'"/></td>');
+              newString.append('<td><input id="phone'+el.id+'" type="text" class="phone notActive" value="'+el.phone+'"/></td>');
+              newString.append('<td><input type="submit" data-id="'+el.id+'" value="Изменить" class="edit"> | <a href="delete/'+el.id+'" data-id="'+el.id+'" class="elDelete">Удалить</a></td>');
+              ul_block.append(newString);
+            }
+          } else {
+            $(document).find('#showMore').remove();
+          }
+          if (normalData.is_over == true){
+            $(document).find('#showMore').remove();
+          }
+        }
+      })
+    })
+    //инициализация кнопки Изменить
+    $(document).on('click','.edit', function(){
+      var elID = $(this).attr('data-id');
+      if (elID){
+        $(document).find('#name'+elID+', #phone'+elID).removeClass('notActive')
+        $(document).find('#name'+elID).focus()
+        //меняем кнопку с изменить на сохранить
+        $(this).removeClass('edit')
+        $(this).addClass('save_edit_element')
+        $(this).val('Сохранить')
+      }
+    })
+    //инициализация кнопки Сохранить
+    $(document).on('click', '.save_edit_element', function(){
+      var elID = $(this).attr('data-id');
+      if (elID){
+        var newName = $(document).find('#name'+elID).val()
+        var newPhone = $(document).find('#phone'+elID).val()
+        var csrfToken = $(document).find('[name="csrfmiddlewaretoken"]').val()
+        if (newName && newPhone) {
+          $(document).find('#name'+elID+', #phone'+elID).addClass('notActive')
+          //меняем кнопку сохранить на изменить
+          $(this).removeClass('save_edit_element')
+          $(this).addClass('edit')
+          $(this).val('Изменить')
+          $.ajax({
+            url: '/edit/'+elID+'/',
+            type: 'POST',
+            data: {is_ajax: 'Y', csrfmiddlewaretoken: csrfToken, name: newName, phone: newPhone},
+            success: function(data) {
+              normalData = JSON.parse(htmlSpecialChar_decode(data));
+              if (normalData.successRequest){
+                alert('Изменения сохранены');
+                hideModal();
+              } else {
+                alert('Произошла ошибка')
+              }
+            }
+          })
+        } else {
+          alert('Для сохранения заполните все поля!')
+        }
+      }
+    });
+  })
+  htmlSpecialChar_decode = function(value) {
+    return value.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&#039;/g, "'");
+  };
+</script>
+</body>
+</html>
